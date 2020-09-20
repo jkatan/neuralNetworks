@@ -7,7 +7,7 @@ public class SimplePerceptronDemo {
     public static void main(String[] args) throws IOException {
 
         // AND test
-        float[][] andTrainingSet = {{-1,1,1},{1,-1,1},{-1,-1,1},{1,1,1}};
+        float[][] andTrainingSet = {{-1,1},{1,-1},{-1,-1},{1,1}};
         float[] andExpectedOutputs = {-1, -1, -1, 1};
         writeTrainingDataToFile("AND-trainingData.csv", andTrainingSet, andExpectedOutputs);
         System.out.println("AND test");
@@ -17,12 +17,48 @@ public class SimplePerceptronDemo {
         System.out.println();
 
         // XOR test
-        float[][] xorTrainingSet = {{-1,1,1},{1,-1,1},{-1,-1,1},{1,1,1}};
+        float[][] xorTrainingSet = {{-1,1},{1,-1},{-1,-1},{1,1}};
         float[] xorExpectedOutputs = {1, 1, -1, -1};
         writeTrainingDataToFile("XOR-trainingData.csv", xorTrainingSet, xorExpectedOutputs);
         System.out.println("XOR test");
         float[] xorWeights = simplePerceptron(xorTrainingSet, xorExpectedOutputs, 0.01f, 50);
          writeWeightsToFile("XOR-weights.csv", xorWeights);
+    }
+
+    private static float[] simplePerceptron(float[][] trainingSet, float[] expectedOutputs, float eta, int maxIterations) {
+        int i = 0;
+        float[] weights = new float[3];
+        float[] deltaWeights;
+        float error = 1.0f;
+
+        while (error > 0 && i < maxIterations) {
+            Random random = new Random();
+            int randomIndex = random.nextInt(trainingSet.length);
+            float[] randomTrainingSample = trainingSet[randomIndex];
+            float excitement = calculatePerceptronExcitement(randomTrainingSample, weights);
+            float activation = signFunction(excitement);
+            float errorProportion = eta * (expectedOutputs[randomIndex] - activation);
+            deltaWeights = calculateDeltaWeights(errorProportion, randomTrainingSample);
+            weights = updateWeights(weights, deltaWeights, errorProportion);
+            error = calculateError(trainingSet, expectedOutputs, weights);
+            i += 1;
+        }
+
+        System.out.println("Iterations: " + i);
+        System.out.println("Total error: " + error);
+        System.out.println("Weights: ");
+        printArray(weights);
+
+        return weights;
+    }
+
+    private static float calculateError(float[][] trainingSet, float[] expectedOutputs, float[] weights) {
+        float totalError = 0.0f;
+        for (int i = 0; i < expectedOutputs.length; i++) {
+            float actualOutput = signFunction(calculatePerceptronExcitement(trainingSet[i], weights));
+            totalError += Math.abs(actualOutput - expectedOutputs[i]);
+        }
+        return totalError;
     }
 
     private static void writeTrainingDataToFile(String filename, float[][] dataToWrite, float[] expectedOutputs) throws IOException {
@@ -51,53 +87,21 @@ public class SimplePerceptronDemo {
         writer.close();
     }
 
-    private static float[] simplePerceptron(float[][] trainingSet, float[] expectedOutputs, float eta, int maxIterations) {
-        int i = 0;
-        float[] weights = new float[3];
-        float[] deltaWeights;
-        float error = 1.0f;
-
-        while (error > 0 && i < maxIterations) {
-            Random random = new Random();
-            int randomIndex = random.nextInt(trainingSet.length);
-            float[] randomTrainingSample = trainingSet[randomIndex];
-            float excitacion = dotProduct(randomTrainingSample, weights);
-            float activacion = signFunction(excitacion);
-            deltaWeights = multiplyVectorByScalar(eta * (expectedOutputs[randomIndex] - activacion), randomTrainingSample);
-            weights = sumVectors(weights, deltaWeights);
-            error = calculateError(trainingSet, expectedOutputs, weights);
-            i += 1;
+    private static float[] updateWeights(float[] weights, float[] deltaWeights, float errorProportion) {
+        float[] newWeights = new float[weights.length];
+        for (int i = 0; i < deltaWeights.length; i++) {
+            newWeights[i] += weights[i] + deltaWeights[i];
         }
+        // The last weight is the bias, so we just sum the errorProportion (equivalent to multiply it by 1)
+        newWeights[weights.length-1] += errorProportion;
 
-        System.out.println("Iterations: " + i);
-        System.out.println("Total error: " + error);
-        System.out.println("Weights: ");
-        printArray(weights);
-
-        return weights;
+        return newWeights;
     }
 
-    private static float calculateError(float[][] trainingSet, float[] expectedOutputs, float[] weights) {
-        float totalError = 0.0f;
-        for (int i = 0; i < expectedOutputs.length; i++) {
-            float actualOutput = signFunction(dotProduct(trainingSet[i], weights));
-            totalError += Math.abs(actualOutput - expectedOutputs[i]);
-        }
-        return totalError;
-    }
-
-    private static float[] sumVectors(float[] aVector, float[] anotherVector) {
-        float[] newVector = new float[aVector.length];
-        for (int i = 0; i < newVector.length; i++) {
-            newVector[i] += aVector[i] + anotherVector[i];
-        }
-        return newVector;
-    }
-
-    private static float[] multiplyVectorByScalar(float scalar, float[] vector) {
-        float[] result = new float[vector.length];
-        for (int i = 0; i < result.length; i++) {
-            result[i] = vector[i] * scalar;
+    private static float[] calculateDeltaWeights(float errorProportion, float[] trainingSample) {
+        float[] result = new float[trainingSample.length];
+        for (int i = 0; i < trainingSample.length; i++) {
+            result[i] = trainingSample[i] * errorProportion;
         }
         return result;
     }
@@ -108,12 +112,12 @@ public class SimplePerceptronDemo {
         return 0;
     }
 
-    private static float dotProduct(float[] anArray, float[] otherArray) {
-        float result = 0.0f;
-        float currentProduct = 0.0f;
-        for (int i = 0; i < anArray.length; i++) {
-            currentProduct = anArray[i] * otherArray[i];
-            result += currentProduct;
+    private static float calculatePerceptronExcitement(float[] trainingSample, float[] weights) {
+        // The last weight is the bias
+        float result = weights[weights.length-1];
+
+        for (int i = 0; i < trainingSample.length; i++) {
+            result += trainingSample[i] * weights[i];
         }
         return result;
     }

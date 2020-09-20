@@ -14,7 +14,7 @@ def graphData(trainingDataFilename, weightsFilename):
 
 	for line in lines:
 		trainingSample = line.split(",")
-		sampleClass = float(trainingSample[3])
+		sampleClass = float(trainingSample[2])
 		if sampleClass == 1.0:
 			blueClassXpoints.append(float(trainingSample[0]))
 			blueClassYpoints.append(float(trainingSample[1]))
@@ -42,4 +42,3 @@ def graphData(trainingDataFilename, weightsFilename):
 
 graphData("AND-trainingData.csv", "AND-weights.csv")
 graphData("XOR-trainingData.csv", "XOR-weights.csv")
-
