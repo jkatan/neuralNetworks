@@ -33,9 +33,9 @@ public class MultilayerPerceptronDemo {
         List<Double> expectedOutputTwo = new ArrayList<>();
         expectedOutputTwo.add(1.0);
         List<Double> expectedOutputThree = new ArrayList<>();
-        expectedOutputThree.add(0.0);
+        expectedOutputThree.add(-1.0);
         List<Double> expectedOutputFour = new ArrayList<>();
-        expectedOutputFour.add(0.0);
+        expectedOutputFour.add(-1.0);
 
         expectedOutputs.add(expectedOutputOne);
         expectedOutputs.add(expectedOutputTwo);
@@ -43,7 +43,7 @@ public class MultilayerPerceptronDemo {
         expectedOutputs.add(expectedOutputFour);
 
         List<List<Neuron>> neuralNetwork = createANeuralNetwork(trainingData.get(0).size(), 2, 1);
-        trainNeuralNetwork(neuralNetwork, trainingData, expectedOutputs, 0.01, 0.01);
+        trainNeuralNetwork(neuralNetwork, trainingData, expectedOutputs, 0.001, 0.01);
 
         for (List<Neuron> layer : neuralNetwork) {
             System.out.println(layer);

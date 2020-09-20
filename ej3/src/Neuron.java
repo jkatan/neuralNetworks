@@ -12,16 +12,16 @@ public class Neuron {
         this.delta = 0.0;
     }
 
-    // Here we use the sigmoid activation function
+    // Here we use the tanh activation function
     public Double activate(List<Double> inputs) {
         Double neuronExcitement = excite(inputs);
-        output = 1.0 / (1.0 + Math.exp(-neuronExcitement));
+        output = Math.tanh(neuronExcitement);
         return output;
     }
 
-    // This is the derivative of the sigmoid function
+    // This is the derivative of the tanh function
     public Double activationDerivative() {
-        return this.output * (1.0 - this.output);
+        return (1 - Math.pow(Math.tanh(output), 2));
     }
 
     private Double excite(List<Double> inputs) {
