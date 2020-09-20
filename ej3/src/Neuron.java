@@ -4,10 +4,12 @@ public class Neuron {
 
     private final List<Double> weights;
     private Double output;
+    private Double delta;
 
     public Neuron(List<Double> weights) {
         this.weights = weights;
-        output = 0.0;
+        this.output = 0.0;
+        this.delta = 0.0;
     }
 
     // Here we use the sigmoid activation function
@@ -15,6 +17,11 @@ public class Neuron {
         Double neuronExcitement = excite(inputs);
         output = 1.0 / (1.0 + Math.exp(-neuronExcitement));
         return output;
+    }
+
+    // This is the derivative of the sigmoid function
+    public Double activationDerivative() {
+        return this.output * (1.0 - this.output);
     }
 
     private Double excite(List<Double> inputs) {
@@ -35,8 +42,12 @@ public class Neuron {
         return output;
     }
 
-    public void updateWeights(List<Double> deltaWeights) {
+    public Double getDelta() {
+        return delta;
+    }
 
+    public void setDelta(Double delta) {
+        this.delta = delta;
     }
 
     @Override
@@ -44,6 +55,7 @@ public class Neuron {
         return "Neuron{" +
                 "weights=" + weights +
                 ", output=" + output +
+                ", delta=" + delta +
                 '}';
     }
 }
