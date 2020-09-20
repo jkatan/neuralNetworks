@@ -1,3 +1,5 @@
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
@@ -6,6 +8,88 @@ import java.util.stream.Collectors;
 public class MultilayerPerceptronDemo {
 
     public static void main(String[] args) throws IOException {
+        xorExercise();
+        imagesExercise();
+    }
+
+    private static void imagesExercise() throws FileNotFoundException {
+        File file = new File("mapaDeDigitos.txt");
+        Scanner reader = new Scanner(file);
+        int lineNumber = 1;
+        List<List<Double>> trainingData = new ArrayList<>();
+        List<List<Double>> expectedOutputs = new ArrayList<>();
+        int currentDigit = 0;
+        List<Double> digitMap = new ArrayList<>();
+        while (reader.hasNextLine()) {
+            String data = reader.nextLine();
+            for (int i = 0; i < data.length(); i++) {
+                if (data.charAt(i) != '\n' && data.charAt(i) != ' ') {
+                    digitMap.add(Double.parseDouble(String.valueOf(data.charAt(i))));
+                }
+            }
+            if (lineNumber % 7 == 0) {
+                List<Double> output = new ArrayList<>();
+                if (currentDigit % 2 == 0) {
+                    output.add(1.0); // even -> 1.0
+                } else {
+                    output.add(-1.0); // odd -> -1.0
+                }
+                expectedOutputs.add(output);
+                currentDigit++;
+                System.out.println("Current digit: " + currentDigit);
+                trainingData.add(digitMap);
+                digitMap = new ArrayList<>();
+            }
+            lineNumber += 1;
+        }
+
+        reader.close();
+
+        // We use 5 digits to train and 5 digits to test
+        List<List<Double>> testData = new ArrayList<>();
+        List<List<Double>> expectedOutputsTest = new ArrayList<>();
+        Random rand = new Random();
+        for (int i = 0; i < 5; i++) {
+            int randIndex = rand.nextInt(trainingData.size());
+            testData.add(trainingData.remove(randIndex));
+            expectedOutputsTest.add(expectedOutputs.remove(randIndex));
+        }
+
+        List<List<Neuron>> neuralNetwork = createANeuralNetwork(trainingData.get(0).size(), 2, 1);
+        trainNeuralNetwork(neuralNetwork, trainingData, expectedOutputs, 0.001, 0.01);
+
+        System.out.println("Neural network layers: ");
+        for (List<Neuron> layer : neuralNetwork) {
+            System.out.println(layer);
+        }
+
+        System.out.println("Training data: " + trainingData);
+        System.out.println("Training data dims: " + trainingData.size() + " x " + trainingData.get(0).size());
+
+        System.out.println("Test data: " + testData);
+        System.out.println("Testing data dims: " + testData.size() + " x " + testData.get(0).size());
+
+        System.out.println("Test results: ");
+        printTestResultsImageExercise(testData, neuralNetwork, expectedOutputsTest);
+    }
+
+    private static void printData(List<List<Double>> trainingData, List<List<Double>> expectedOutputs) {
+        int digit = 0;
+        for (int i=0; i<trainingData.size(); i++) {
+            for (int j = 0; j < trainingData.get(i).size(); j++) {
+                System.out.print(trainingData.get(i).get(j) + " ");
+                if ((j + 1) % 5 == 0) {
+                    System.out.println();
+                }
+            }
+            System.out.println("Digit: " + digit);
+            System.out.println("Expected output: " + expectedOutputs.get(i));
+            System.out.println();
+            digit += 1;
+        }
+    }
+
+    private static void xorExercise() throws IOException {
         List<List<Double>> trainingData = new ArrayList<>();
 
         List<Double> sampleOne = new ArrayList<>();
@@ -43,18 +127,13 @@ public class MultilayerPerceptronDemo {
         expectedOutputs.add(expectedOutputFour);
 
         List<List<Neuron>> neuralNetwork = createANeuralNetwork(trainingData.get(0).size(), 2, 1);
-        trainNeuralNetwork(neuralNetwork, trainingData, expectedOutputs, 0.001, 0.01);
+        trainNeuralNetwork(neuralNetwork, trainingData, expectedOutputs, 0.001, 0.001);
 
         for (List<Neuron> layer : neuralNetwork) {
             System.out.println(layer);
         }
 
-        System.out.println("Results: ");
-        for (int i = 0; i < trainingData.size(); i++) {
-            List<Double> outputs = forwardPropagate(neuralNetwork, trainingData.get(i));
-            System.out.println("(Inputs: " + trainingData.get(i) + ") -> (Outputs: " + outputs + ")");
-            System.out.println("Expected outputs: " + expectedOutputs.get(i));
-        }
+        printTestResults(trainingData, neuralNetwork, expectedOutputs);
 
         List<List<Double>> hiddenLayerNeuronsWeights = new ArrayList<>();
         for (Neuron hiddenNeuron : neuralNetwork.get(0)) {
@@ -62,6 +141,33 @@ public class MultilayerPerceptronDemo {
         }
         writeTrainingDataToFile("XOR-TrainingData.csv", trainingData, expectedOutputs);
         writeWeightsToFile("XOR-neuron-weights.csv", hiddenLayerNeuronsWeights);
+    }
+
+    private static void printTestResults(List<List<Double>> trainingData, List<List<Neuron>> neuralNetwork, List<List<Double>> expectedOutputs) {
+        System.out.println("Results: ");
+        for (int i = 0; i < trainingData.size(); i++) {
+            List<Double> outputs = forwardPropagate(neuralNetwork, trainingData.get(i));
+            System.out.println("(Inputs: " + trainingData.get(i) + ") -> (Outputs: " + outputs + ")");
+            System.out.println("Expected outputs: " + expectedOutputs.get(i));
+        }
+    }
+
+    private static void printTestResultsImageExercise(List<List<Double>> trainingData, List<List<Neuron>> neuralNetwork, List<List<Double>> expectedOutputs) {
+        System.out.println("Results: ");
+        int correct = 0;
+        int incorrect = 0;
+        for (int i = 0; i < trainingData.size(); i++) {
+            List<Double> outputs = forwardPropagate(neuralNetwork, trainingData.get(i));
+            System.out.println("(Inputs: " + trainingData.get(i) + ") -> (Outputs: " + outputs + ")");
+            System.out.println("Expected outputs: " + expectedOutputs.get(i));
+            if ((outputs.get(0) > 0 && expectedOutputs.get(i).get(0) > 0) || ((outputs.get(0) < 0 && expectedOutputs.get(i).get(0) < 0))) {
+                correct += 1;
+            } else {
+                incorrect += 1;
+            }
+        }
+        System.out.println("Correct predictions: " + correct);
+        System.out.println("Incorrect predictions: " + incorrect);
     }
 
     private static void trainNeuralNetwork(List<List<Neuron>> neuralNetwork, List<List<Double>> trainingSamples, List<List<Double>> expectedOutputs, double eta, double minError) {
@@ -113,8 +219,10 @@ public class MultilayerPerceptronDemo {
 
             List<Neuron> currentLayer = neuralNetwork.get(i);
             for (Neuron neuron : currentLayer) {
-                for (int j = 0; j < inputs.size(); j++) {
+                for (int j = 0; j < nextInputs.size(); j++) {
                     Double weight = neuron.getWeights().get(j);
+                    //System.out.println("j: " + j);
+                    //System.out.println("nextInputsSize: " + nextInputs.size());
                     weight += eta * neuron.getDelta() * nextInputs.get(j);
                     neuron.getWeights().set(j, weight);
                 }
