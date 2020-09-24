@@ -1,110 +1,214 @@
 import java.io.*;
-import java.util.Random;
-import java.util.Scanner;
+import java.util.*;
 
 public class SimplePerceptronLinearityDemo {
     public static void main(String[] args) throws IOException {
-        int linesForTraining = 160;
-        String pathToEj2 = "C:\\Users\\Nico\\Documents\\ITBA\\Sistemas de Inteligencia Artificial (SIA)\\TP3\\neuralNetworks\\ej2\\";
-        float[][] trainingSet = parseTrainingSetFromFile(pathToEj2 + "TP3-ej2-Conjunto-entrenamiento.txt", linesForTraining);
-        float[] expectedOutputs = parseExpectedOutputsFromFile(pathToEj2 + "TP3-ej2-Salida-deseada.txt", linesForTraining);
+        int linesToParse = 200;
+        int trainingAmount = 140;
+        int testingAmount = 60;
+        float[][] inputs = parseTrainingSetFromFile("TP3-ej2-Conjunto-entrenamiento.txt", linesToParse);
+        float[] expectedOutputs = parseExpectedOutputsFromFile("TP3-ej2-Salida-deseada.txt", linesToParse);
 
-        writeTrainingDataToFile("linear-trainingData.csv", trainingSet, expectedOutputs);
+        generateRandomTrainingAndTestingFiles(inputs, expectedOutputs, trainingAmount);
+
+        float[][] trainingSet = parseTrainingSetFromFile("training-inputs.csv", trainingAmount);
+        float[] trainingOutputs = parseExpectedOutputsFromFile("training-outputs.csv", trainingAmount);
+
+        float[][] testingSet = parseTrainingSetFromFile("testing-inputs.csv", testingAmount);
+        float[] testingOutputs = parseExpectedOutputsFromFile("testing-outputs.csv", testingAmount);
+
+        float[] normalizedTrainingOutputs = normalizeOutputs(trainingOutputs);
+        float[] normalizedTestingOutputs = normalizeOutputs(testingOutputs);
+
         System.out.println("Linear test:");
-        float[] linearWeights = simpleLinearPerceptron(trainingSet, expectedOutputs, 0.01f, 50);
-        writeWeightsToFile("linear-weights.csv", linearWeights);
+        float[] linearWeights = simpleLinearPerceptron(trainingSet, normalizedTrainingOutputs, 0.01f, 0.9404f);
+        System.out.println("Weights obtained:");
+        printArray(linearWeights);
+        System.out.println();
+        System.out.println("Linear model evaluation, using only training set");
+        evaluateLinearModel(linearWeights, trainingSet, normalizedTrainingOutputs);
 
         System.out.println();
 
-        writeTrainingDataToFile("nonLinear-trainingData.csv", trainingSet, expectedOutputs);
         System.out.println("Non linear test:");
-        float[] nonLinearWeights = simpleNonLinearPerceptron(trainingSet, expectedOutputs, 0.01f, 50);
-        writeWeightsToFile("nonLinear-weights.csv", nonLinearWeights);
+        float[] nonLinearWeights = simpleNonLinearPerceptron(trainingSet, normalizedTrainingOutputs,  0.01f, 100, 0.55f, testingSet, normalizedTestingOutputs);
+        System.out.println("Weights obtained:");
+        printArray(nonLinearWeights);
+        System.out.println();
+        System.out.println("Non linear model evaluation, using only testing set");
+        evaluateNonLinearModel(nonLinearWeights, trainingSet, normalizedTrainingOutputs);
     }
 
-    public static float[] simpleLinearPerceptron(float[][] trainingSet, float[] expectedOutputs, float eta, int maxIterations) {
+    public static float[] simpleLinearPerceptron(float[][] trainingSet, float[] expectedOutputs, float eta, float epsilon) {
         int i = 0;
-        float[] weights = new float[3];
-        float[] deltaWeights;
-        float error = 1.0f;
+        float[] weights = new float[4];
+        for (int k = 0; k < weights.length; k++) {
+            Random rand = new Random();
+            weights[k] = rand.nextFloat();
+        }
+        float error = epsilon+1;
 
-        while (error > 0 && i < maxIterations) {
+        float lastDeltaWeight1 = 0.0f;
+        float lastDeltaWeight2 = 0.0f;
+        float lastDeltaWeight3 = 0.0f;
+        float lastDeltaWeight4 = 0.0f;
+        while (error > epsilon) {
+
             Random random = new Random();
             int randomIndex = random.nextInt(trainingSet.length);
             float[] randomTrainingSample = trainingSet[randomIndex];
-            // in simple perceptron linear, excitement is equal to activation
-            float activation = calculatePerceptronExcitement(randomTrainingSample, weights);
-            // and activation impacts in delta error
-            float errorProportion = eta * (expectedOutputs[randomIndex] - activation);
-            // which indirectly impacts on the cost function
-            deltaWeights = calculateDeltaWeights(errorProportion, randomTrainingSample);
-            weights = updateWeights(weights, deltaWeights, errorProportion);
-            error = calculateLinearError(trainingSet, expectedOutputs, weights);
+            float output = (randomTrainingSample[0] * weights[0]) + (randomTrainingSample[1] * weights[1]) + (randomTrainingSample[2] * weights[2]) + weights[3];
+            float localError = expectedOutputs[randomIndex] - output;
+
+            weights[0] += eta * localError * randomTrainingSample[0] + 0.8f*lastDeltaWeight1;
+            weights[1] += eta * localError * randomTrainingSample[1] + 0.8f*lastDeltaWeight2;
+            weights[2] += eta * localError * randomTrainingSample[2] + 0.8f*lastDeltaWeight3;
+            weights[3] += eta * localError + 0.8f*lastDeltaWeight4;
+
+            lastDeltaWeight1 = eta * localError * randomTrainingSample[0];
+            lastDeltaWeight2 = eta * localError * randomTrainingSample[1];
+            lastDeltaWeight3 = eta * localError * randomTrainingSample[2];
+            lastDeltaWeight4 = eta * localError;
+
+            error = 0.0f;
+            for (int j = 0; j < expectedOutputs.length; j++) {
+                float newOutput = (trainingSet[j][0] * weights[0]) + (trainingSet[j][1] * weights[1]) + (trainingSet[j][2] * weights[2]) + weights[3];
+                error += Math.pow(newOutput - expectedOutputs[j], 2);
+            }
+            error *= 0.5f;
             i++;
         }
+        return weights;
+    }
 
-        System.out.println("Iterations: " + i);
-        System.out.println("Total error: " + error);
-        System.out.println("Weights: ");
-        printArray(weights);
+    public static float[] simpleNonLinearPerceptron(float[][] trainingSet, float[] expectedOutputs, float eta, int epochsAmount, float epsilon, float[][] testingSet, float[] testingOutputs) throws IOException {
+        int epochs = 1;
+        float[] weights = new float[4];
+        float[] deltaWeights;
+        float trainingSetError = epsilon+1.0f;
+        float testingSetError = epsilon+1.0f;
+        // We map each epoch to the error in that epoch
+        Map<Integer, Float> trainingErrorsPerEpoch = new HashMap<>();
+        Map<Integer, Float> testingErrorsPerEpoch = new HashMap<>();
+
+        for (int k = 0; k < weights.length; k++) {
+            Random rand = new Random();
+            weights[k] = rand.nextFloat();
+        }
+
+        while (trainingSetError > epsilon || epochs < epochsAmount) {
+
+            for (int i = 0; i < expectedOutputs.length; i++) {
+                Random random = new Random();
+                int randomIndex = random.nextInt(trainingSet.length);
+                float[] randomTrainingSample = trainingSet[randomIndex];
+                // in simple perceptron linear, excitement is equal to activation
+                double excitement = calculatePerceptronExcitement(randomTrainingSample, weights);
+                float activation = (float) (1.0f/(1.0f+Math.exp(-excitement)));
+                float errorProportion = (eta * (expectedOutputs[randomIndex] - activation) * (activation*(1-activation)));
+                // which indirectly impacts on the cost function
+                deltaWeights = calculateDeltaWeights(errorProportion, randomTrainingSample);
+                weights = updateWeights(weights, deltaWeights, errorProportion);
+            }
+
+            trainingSetError = calculateNonLinearError(trainingSet, expectedOutputs, weights);
+
+            float epochTrainingError = calculateAccumulatedRelativeError(trainingSet, expectedOutputs, weights);
+            trainingErrorsPerEpoch.put(epochs, epochTrainingError);
+
+            float epochTestingError = calculateAccumulatedRelativeError(testingSet, testingOutputs, weights);
+            testingErrorsPerEpoch.put(epochs, epochTestingError);
+
+            epochs++;
+        }
+
+        writeEpochErrorsMappingToFile("training-errors-per-epoch.csv", trainingErrorsPerEpoch);
+        writeEpochErrorsMappingToFile("testing-errors-per-epoch.csv", testingErrorsPerEpoch);
 
         return weights;
     }
 
-    public static float[] simpleNonLinearPerceptron(float[][] trainingSet, float[] expectedOutputs, float eta, int maxIterations) {
-        int i = 0;
-        float[] weights = new float[3];
-        float[] deltaWeights;
-        float error = 1.0f;
-        double beta = 0.5;
+    private static void writeEpochErrorsMappingToFile(String fileName, Map<Integer, Float> epochErrors) throws IOException {
+        FileWriter epochErrorsFile = new FileWriter(fileName);
+        epochErrors.forEach((epoch, error) -> {
+            try {
+                epochErrorsFile.write(epoch + ", " + error + "\n");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
 
-        while (error > 0 && i < maxIterations) {
-            Random random = new Random();
-            int randomIndex = random.nextInt(trainingSet.length);
-            float[] randomTrainingSample = trainingSet[randomIndex];
-            // in simple perceptron linear, excitement is equal to activation
-            double excitement = calculatePerceptronExcitement(randomTrainingSample, weights);
-            float activation = (float) Math.tanh(beta * excitement);
-            // and activation impacts in delta error, because now I also need g', which in tanh it's equal to beta*(1-g^2)
-            float errorProportion = (float) (eta * (expectedOutputs[randomIndex] - activation) * (beta * (1 - Math.pow(activation, 2))));
-            // which indirectly impacts on the cost function
-            deltaWeights = calculateDeltaWeights(errorProportion, randomTrainingSample);
-            weights = updateWeights(weights, deltaWeights, errorProportion);
-            error = calculateNonLinearError(trainingSet, expectedOutputs, weights, beta);
-            i++;
-        }
-
-        System.out.println("Iterations: " + i);
-        System.out.println("Total error: " + error);
-        System.out.println("Weights: ");
-        printArray(weights);
-
-        return weights;
+        epochErrorsFile.close();
     }
 
-    private static void writeTrainingDataToFile(String filename, float[][] dataToWrite, float[] expectedOutputs) throws IOException {
-        FileWriter writer = new FileWriter(filename);
-        for (int i = 0; i < dataToWrite.length; i++) {
-            for (int j = 0; j < dataToWrite[i].length; j++) {
-                writer.write(String.valueOf(dataToWrite[i][j]));
-                writer.write(",");
-            }
-            writer.write(String.valueOf(expectedOutputs[i]));
-            writer.write("\n");
+    private static float calculateAccumulatedRelativeError(float[][] trainingSet, float[] expectedOutputs, float[] weights) {
+        float totalError = 0.0f;
+        for (int i = 0; i < expectedOutputs.length; i++) {
+            float actualOutput = (float) (1.0f / (1.0 + Math.exp(-calculatePerceptronExcitement(trainingSet[i], weights))));
+            totalError += Math.abs(expectedOutputs[i] - actualOutput);
         }
-
-        writer.close();
+        return totalError/expectedOutputs.length;
     }
 
-    private static void writeWeightsToFile(String filename, float[] weights) throws IOException {
-        FileWriter writer = new FileWriter(filename);
-        for (int i = 0; i < weights.length; i++) {
-            writer.write(String.valueOf(weights[i]));
-            if (i < weights.length -1) {
-                writer.write(",");
+    private static void evaluateLinearModel(float[] weights, float[][] inputs, float[] expectedOutputs) {
+        int length = expectedOutputs.length;
+        float error = 0.0f;
+        float errorSum = 0.0f;
+        for (int i = 0; i < length; i++) {
+            float actualOutput = calculatePerceptronExcitement(inputs[i], weights);
+            error += Math.pow(expectedOutputs[i] - actualOutput, 2);
+            errorSum += Math.abs(expectedOutputs[i] - actualOutput);
+        }
+        error *= 0.5f;
+        System.out.println("(1/2) * Squared sum error = " +  error);
+        System.out.println("Average error = " + (errorSum/expectedOutputs.length));
+        System.out.println("Total accumulated error: " + errorSum);
+    }
+
+    private static void evaluateNonLinearModel(float[] weights, float[][] inputs, float[] expectedOutputs) {
+        int length = expectedOutputs.length;
+        float error = 0.0f;
+        float errorSum = 0.0f;
+        for (int i = 0; i < length; i++) {
+            float actualOutput = (float) (1.0f / (1.0 + Math.exp(-calculatePerceptronExcitement(inputs[i], weights))));
+            error += Math.pow(expectedOutputs[i] - actualOutput, 2);
+            errorSum += Math.abs(expectedOutputs[i] - actualOutput);
+        }
+        error *= 0.5f;
+        System.out.println("(1/2) * Squared sum error = " +  error);
+        System.out.println("Average error = " + (errorSum/expectedOutputs.length));
+        System.out.println("Total accumulated error: " + errorSum);
+    }
+
+    private static float[] normalizeOutputs(float[] outputsToNormalize) {
+        float[] normalizedOutputs = new float[outputsToNormalize.length];
+        float max = findMax(outputsToNormalize);
+        float min = findMin(outputsToNormalize);
+        float range = max - min;
+        for (int i = 0; i < normalizedOutputs.length; i++) {
+            normalizedOutputs[i] = (outputsToNormalize[i] - min)/range;
+        }
+        return normalizedOutputs;
+    }
+
+    private static float findMin(float[] array) {
+        float min = array[0];
+        for (int i = 1; i < array.length; i++) {
+            if (array[i] < min) {
+                min = array[i];
             }
         }
-        writer.close();
+        return min;
+    }
+
+    private static float findMax(float[] array) {
+        float max = array[0];
+        for (int i = 1; i < array.length; i++) {
+            if (array[i] > max) {
+                max = array[i];
+            }
+        }
+        return max;
     }
 
     private static float[] updateWeights(float[] weights, float[] deltaWeights, float errorProportion) {
@@ -151,25 +255,25 @@ public class SimplePerceptronLinearityDemo {
         float totalError = 0.0f;
         int length = expectedOutputs.length;
         for (int i = 0; i < length; i++) {
-            float actualOutput = calculatePerceptronExcitement(trainingSet[i], weights);
-            totalError += Math.abs(actualOutput - expectedOutputs[i]);
+            float output = trainingSet[i][0] * weights[0] + trainingSet[i][1] * weights[1] + trainingSet[i][2] * weights[2] + weights[3];
+            totalError +=  Math.pow(expectedOutputs[i] - output, 2);
         }
-        return totalError;
+        return totalError * 0.5f;
     }
 
-    private static float calculateNonLinearError(float[][] trainingSet, float[] expectedOutputs, float[] weights, double beta) {
+    private static float calculateNonLinearError(float[][] trainingSet, float[] expectedOutputs, float[] weights) {
         float totalError = 0.0f;
         for (int i = 0; i < expectedOutputs.length; i++) {
-            float actualOutput = (float) Math.tanh(beta * calculatePerceptronExcitement(trainingSet[i], weights));
-            totalError += Math.abs(actualOutput - expectedOutputs[i]);
+            float actualOutput = (float) (1.0f / (1.0 + Math.exp(-calculatePerceptronExcitement(trainingSet[i], weights))));
+            totalError += Math.pow(expectedOutputs[i] - actualOutput, 2);
         }
-        return totalError;
+        return totalError*0.5f;
     }
 
-    private static float[][] parseTrainingSetFromFile(String s, int linesForTraining) throws FileNotFoundException {
+    private static float[][] parseTrainingSetFromFile(String s, int linesToParse) throws FileNotFoundException {
         Scanner reader = new Scanner(new File(s));
-        float[][] trainingSet = new float[linesForTraining][3];
-        for (int i = 0; i < linesForTraining; i++) {
+        float[][] trainingSet = new float[linesToParse][3];
+        for (int i = 0; i < linesToParse; i++) {
             String line = reader.nextLine();
             String[] parsedLine = line.trim().split(" +");
             for (int j = 0; j < parsedLine.length; j++) {
@@ -179,10 +283,10 @@ public class SimplePerceptronLinearityDemo {
         return trainingSet;
     }
 
-    private static float[] parseExpectedOutputsFromFile(String s, int linesForTraining) throws FileNotFoundException {
+    private static float[] parseExpectedOutputsFromFile(String s, int linesToParse) throws FileNotFoundException {
         Scanner reader = new Scanner(new File(s));
-        float[] expectedSet = new float[linesForTraining];
-        for (int i = 0; i < linesForTraining; i++) {
+        float[] expectedSet = new float[linesToParse];
+        for (int i = 0; i < linesToParse; i++) {
             expectedSet[i] = Float.parseFloat(reader.nextLine().trim());
         }
         return expectedSet;
@@ -190,9 +294,49 @@ public class SimplePerceptronLinearityDemo {
 
     private static void printTable(float[][] table) {
         System.out.println("(");
-        for (int i = 0; i < table.length; i++) {
-            printArray(table[i]);
+        for (float[] floats : table) {
+            printArray(floats);
         }
         System.out.println(")");
+    }
+
+    private static void generateRandomTrainingAndTestingFiles(float[][] trainingInputs, float[] expectedOutputs, int trainingSamplesAmount) throws IOException {
+        List<TrainingSample> samples = new ArrayList<>();
+        for (int i = 0; i < expectedOutputs.length; i++) {
+            samples.add(new TrainingSample(trainingInputs[i], expectedOutputs[i]));
+        }
+        Collections.shuffle(samples);
+
+        List<TrainingSample> samplesForTraining = new ArrayList<>();
+        for (int j = 0; j < trainingSamplesAmount; j++) {
+            samplesForTraining.add(samples.remove(0));
+        }
+        generateSampleFiles(samplesForTraining, "training");
+
+        List<TrainingSample> samplesForTesting = new ArrayList<>(samples);
+        generateSampleFiles(samplesForTesting, "testing");
+    }
+
+    private static void generateSampleFiles(List<TrainingSample> trainingSamples, String filename) throws IOException {
+
+        FileWriter inputs = new FileWriter(filename + "-inputs.csv");
+        FileWriter outputs = new FileWriter(filename + "-outputs.csv");
+        for (TrainingSample sample : trainingSamples) {
+            float[] trainingSample = sample.getInput();
+            float outputSample = sample.getExpectedOutput();
+
+            inputs.write(String.valueOf(trainingSample[0]));
+            inputs.write("  ");
+            inputs.write(String.valueOf(trainingSample[1]));
+            inputs.write("  ");
+            inputs.write(String.valueOf(trainingSample[2]));
+            inputs.write('\n');
+
+            outputs.write("  " + String.valueOf(outputSample));
+            outputs.write('\n');
+        }
+
+        inputs.close();
+        outputs.close();
     }
 }
