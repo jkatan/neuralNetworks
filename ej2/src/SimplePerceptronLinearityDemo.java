@@ -3,25 +3,32 @@ import java.util.*;
 
 public class SimplePerceptronLinearityDemo {
     public static void main(String[] args) throws IOException {
-        int linesToParse = 200;
-        int trainingAmount = 140;
-        int testingAmount = 60;
-        float[][] inputs = parseTrainingSetFromFile("TP3-ej2-Conjunto-entrenamiento.txt", linesToParse);
-        float[] expectedOutputs = parseExpectedOutputsFromFile("TP3-ej2-Salida-deseada.txt", linesToParse);
+        String ej2ConfigPath = "src/config.properties";
+        final Properties properties = new Properties();
+        properties.load(new FileInputStream(ej2ConfigPath));
+
+        int linesToParse = Integer.parseInt(properties.getProperty("totalLinesToParseFromTrainingFile"));
+        int trainingAmount = Integer.parseInt(properties.getProperty("linesUsedToTrain"));
+        int testingAmount = Integer.parseInt(properties.getProperty("linesUsedToTest"));
+        float[][] inputs = parseTrainingSetFromFile(properties.getProperty("trainingInputs"), linesToParse);
+        float[] expectedOutputs = parseExpectedOutputsFromFile(properties.getProperty("expectedOutputs"), linesToParse);
 
         generateRandomTrainingAndTestingFiles(inputs, expectedOutputs, trainingAmount);
 
-        float[][] trainingSet = parseTrainingSetFromFile("training-inputs.csv", trainingAmount);
-        float[] trainingOutputs = parseExpectedOutputsFromFile("training-outputs.csv", trainingAmount);
+        float[][] trainingSet = parseTrainingSetFromFile(properties.getProperty("randomTrainingInputs"), trainingAmount);
+        float[] trainingOutputs = parseExpectedOutputsFromFile(properties.getProperty("respectiveRandomTrainingOutputs"), trainingAmount);
 
-        float[][] testingSet = parseTrainingSetFromFile("testing-inputs.csv", testingAmount);
-        float[] testingOutputs = parseExpectedOutputsFromFile("testing-outputs.csv", testingAmount);
+        float[][] testingSet = parseTrainingSetFromFile(properties.getProperty("randomTestingInputs"), testingAmount);
+        float[] testingOutputs = parseExpectedOutputsFromFile(properties.getProperty("respectiveRandomTestingOutputs"), testingAmount);
 
         float[] normalizedTrainingOutputs = normalizeOutputs(trainingOutputs);
         float[] normalizedTestingOutputs = normalizeOutputs(testingOutputs);
 
         System.out.println("Linear test:");
-        float[] linearWeights = simpleLinearPerceptron(trainingSet, normalizedTrainingOutputs, 0.01f, 0.9404f);
+        float linearEta = Float.parseFloat(properties.getProperty("linearEta"));
+        float linearEpsilon = Float.parseFloat(properties.getProperty("linearEpsilon"));
+        float momentumAlpha = Float.parseFloat(properties.getProperty("momentumAlpha"));
+        float[] linearWeights = simpleLinearPerceptron(trainingSet, normalizedTrainingOutputs, linearEta, linearEpsilon, momentumAlpha);
         System.out.println("Weights obtained:");
         printArray(linearWeights);
         System.out.println();
@@ -31,7 +38,10 @@ public class SimplePerceptronLinearityDemo {
         System.out.println();
 
         System.out.println("Non linear test:");
-        float[] nonLinearWeights = simpleNonLinearPerceptron(trainingSet, normalizedTrainingOutputs,  0.01f, 100, 0.55f, testingSet, normalizedTestingOutputs);
+        float nonLinearEta = Float.parseFloat(properties.getProperty("nonLinearEta"));
+        int epochsAmount = Integer.parseInt(properties.getProperty("epochsAmount"));
+        float nonLinearEpsilon = Float.parseFloat(properties.getProperty("nonLinearEpsilon"));
+        float[] nonLinearWeights = simpleNonLinearPerceptron(trainingSet, normalizedTrainingOutputs,  nonLinearEta, epochsAmount, nonLinearEpsilon, testingSet, normalizedTestingOutputs);
         System.out.println("Weights obtained:");
         printArray(nonLinearWeights);
         System.out.println();
@@ -39,7 +49,7 @@ public class SimplePerceptronLinearityDemo {
         evaluateNonLinearModel(nonLinearWeights, trainingSet, normalizedTrainingOutputs);
     }
 
-    public static float[] simpleLinearPerceptron(float[][] trainingSet, float[] expectedOutputs, float eta, float epsilon) {
+    public static float[] simpleLinearPerceptron(float[][] trainingSet, float[] expectedOutputs, float eta, float epsilon, float momentumAlpha) {
         int i = 0;
         float[] weights = new float[4];
         for (int k = 0; k < weights.length; k++) {
@@ -60,10 +70,10 @@ public class SimplePerceptronLinearityDemo {
             float output = (randomTrainingSample[0] * weights[0]) + (randomTrainingSample[1] * weights[1]) + (randomTrainingSample[2] * weights[2]) + weights[3];
             float localError = expectedOutputs[randomIndex] - output;
 
-            weights[0] += eta * localError * randomTrainingSample[0] + 0.8f*lastDeltaWeight1;
-            weights[1] += eta * localError * randomTrainingSample[1] + 0.8f*lastDeltaWeight2;
-            weights[2] += eta * localError * randomTrainingSample[2] + 0.8f*lastDeltaWeight3;
-            weights[3] += eta * localError + 0.8f*lastDeltaWeight4;
+            weights[0] += eta * localError * randomTrainingSample[0] + momentumAlpha * lastDeltaWeight1;
+            weights[1] += eta * localError * randomTrainingSample[1] + momentumAlpha * lastDeltaWeight2;
+            weights[2] += eta * localError * randomTrainingSample[2] + momentumAlpha * lastDeltaWeight3;
+            weights[3] += eta * localError + momentumAlpha * lastDeltaWeight4;
 
             lastDeltaWeight1 = eta * localError * randomTrainingSample[0];
             lastDeltaWeight2 = eta * localError * randomTrainingSample[1];
@@ -335,7 +345,6 @@ public class SimplePerceptronLinearityDemo {
             outputs.write("  " + String.valueOf(outputSample));
             outputs.write('\n');
         }
-
         inputs.close();
         outputs.close();
     }

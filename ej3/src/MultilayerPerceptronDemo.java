@@ -1,19 +1,21 @@
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
 public class MultilayerPerceptronDemo {
 
     public static void main(String[] args) throws IOException {
-        xorExercise();
-        imagesExercise();
+        String ej3ConfigPath = "src/config.properties";
+        final Properties properties = new Properties();
+        properties.load(new FileInputStream(ej3ConfigPath));
+
+        xorExercise(properties);
+        imagesExercise(properties);
     }
 
-    private static void imagesExercise() throws FileNotFoundException {
-        File file = new File("mapaDeDigitos.txt");
+    private static void imagesExercise(Properties properties) throws IOException {
+
+        File file = new File(properties.getProperty("trainingMap"));
         Scanner reader = new Scanner(file);
         int lineNumber = 1;
         List<List<Double>> trainingData = new ArrayList<>();
@@ -54,9 +56,14 @@ public class MultilayerPerceptronDemo {
             expectedOutputsTest.add(expectedOutputs.remove(randIndex));
         }
 
-        List<List<Neuron>> neuralNetwork = createANeuralNetwork(trainingData.get(0).size(), 2, 1);
+        int hiddenLayerNeurons = Integer.getInteger("imagesHiddenLayerNeurons");
+        int exitLayerNeurons = Integer.getInteger("imagesExitLayerNeurons");
+        List<List<Neuron>> neuralNetwork = createANeuralNetwork(trainingData.get(0).size(), hiddenLayerNeurons, exitLayerNeurons);
         System.out.println("TRAIN IMAGES NEURAL NETWORK");
-        trainNeuralNetwork(neuralNetwork, trainingData, expectedOutputs, 0.001, 0.01);
+
+        double eta = Double.parseDouble(properties.getProperty("imagesEta"));
+        double minError = Double.parseDouble(properties.getProperty("imagesMinError"));
+        trainNeuralNetwork(neuralNetwork, trainingData, expectedOutputs, eta, minError);
         System.out.println("Neural network layers: ");
         for (List<Neuron> layer : neuralNetwork) {
             System.out.println(layer);
@@ -90,7 +97,7 @@ public class MultilayerPerceptronDemo {
         }
     }
 
-    private static void xorExercise() throws IOException {
+    private static void xorExercise(Properties properties) throws IOException {
         List<List<Double>> trainingData = new ArrayList<>();
 
         List<Double> sampleOne = new ArrayList<>();
@@ -127,9 +134,13 @@ public class MultilayerPerceptronDemo {
         expectedOutputs.add(expectedOutputThree);
         expectedOutputs.add(expectedOutputFour);
 
-        List<List<Neuron>> neuralNetwork = createANeuralNetwork(trainingData.get(0).size(), 2, 1);
+        int hiddenLayerNeurons = Integer.parseInt(properties.getProperty("xorHiddenLayerNeurons"));
+        int exitLayerNeurons = Integer.parseInt(properties.getProperty("xorExitLayerNeurons"));
+        List<List<Neuron>> neuralNetwork = createANeuralNetwork(trainingData.get(0).size(), hiddenLayerNeurons, exitLayerNeurons);
         System.out.println("TRAIN XOR NEURAL NETWORK");
-        trainNeuralNetwork(neuralNetwork, trainingData, expectedOutputs, 0.01, 0.0015);
+        double xorEta = Double.parseDouble(properties.getProperty("xorEta"));
+        double minError = Double.parseDouble(properties.getProperty("xorMinError"));
+        trainNeuralNetwork(neuralNetwork, trainingData, expectedOutputs, xorEta, minError);
 
         System.out.println("Neural network layers: ");
         for (List<Neuron> layer : neuralNetwork) {
@@ -146,8 +157,8 @@ public class MultilayerPerceptronDemo {
         for (Neuron hiddenNeuron : neuralNetwork.get(0)) {
             hiddenLayerNeuronsWeights.add(hiddenNeuron.getWeights());
         }
-        writeTrainingDataToFile("XOR-TrainingData.csv", trainingData, expectedOutputs);
-        writeWeightsToFile("XOR-neuron-weights.csv", hiddenLayerNeuronsWeights);
+        writeTrainingDataToFile(properties.getProperty("xorTrainingDataFile"), trainingData, expectedOutputs);
+        writeWeightsToFile(properties.getProperty("xorNeuronWeights"), hiddenLayerNeuronsWeights);
     }
 
     private static void printTestResults(List<List<Double>> trainingData, List<List<Neuron>> neuralNetwork, List<List<Double>> expectedOutputs) {
