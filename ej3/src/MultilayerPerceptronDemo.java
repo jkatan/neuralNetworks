@@ -56,8 +56,8 @@ public class MultilayerPerceptronDemo {
             expectedOutputsTest.add(expectedOutputs.remove(randIndex));
         }
 
-        int hiddenLayerNeurons = Integer.getInteger("imagesHiddenLayerNeurons");
-        int exitLayerNeurons = Integer.getInteger("imagesExitLayerNeurons");
+        int hiddenLayerNeurons = Integer.parseInt(properties.getProperty("imagesHiddenLayerNeurons"));
+        int exitLayerNeurons = Integer.parseInt(properties.getProperty("imagesExitLayerNeurons"));
         List<List<Neuron>> neuralNetwork = createANeuralNetwork(trainingData.get(0).size(), hiddenLayerNeurons, exitLayerNeurons);
         System.out.println("TRAIN IMAGES NEURAL NETWORK");
 

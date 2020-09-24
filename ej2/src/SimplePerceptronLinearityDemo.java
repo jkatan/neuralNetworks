@@ -45,7 +45,7 @@ public class SimplePerceptronLinearityDemo {
         System.out.println("Weights obtained:");
         printArray(nonLinearWeights);
         System.out.println();
-        System.out.println("Non linear model evaluation, using only testing set");
+        System.out.println("Non linear model evaluation, using only training set");
         evaluateNonLinearModel(nonLinearWeights, trainingSet, normalizedTrainingOutputs);
     }
 
