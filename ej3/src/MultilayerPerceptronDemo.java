@@ -36,7 +36,6 @@ public class MultilayerPerceptronDemo {
                 }
                 expectedOutputs.add(output);
                 currentDigit++;
-                System.out.println("Current digit: " + currentDigit);
                 trainingData.add(digitMap);
                 digitMap = new ArrayList<>();
             }
@@ -45,32 +44,34 @@ public class MultilayerPerceptronDemo {
 
         reader.close();
 
-        // We use 5 digits to train and 5 digits to test
+        // We use 6 digits to train and 4 digits to test, all random
         List<List<Double>> testData = new ArrayList<>();
         List<List<Double>> expectedOutputsTest = new ArrayList<>();
         Random rand = new Random();
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 4; i++) {
             int randIndex = rand.nextInt(trainingData.size());
             testData.add(trainingData.remove(randIndex));
             expectedOutputsTest.add(expectedOutputs.remove(randIndex));
         }
 
         List<List<Neuron>> neuralNetwork = createANeuralNetwork(trainingData.get(0).size(), 2, 1);
+        System.out.println("TRAIN IMAGES NEURAL NETWORK");
         trainNeuralNetwork(neuralNetwork, trainingData, expectedOutputs, 0.001, 0.01);
-
         System.out.println("Neural network layers: ");
         for (List<Neuron> layer : neuralNetwork) {
             System.out.println(layer);
         }
 
-        System.out.println("Training data: " + trainingData);
-        System.out.println("Training data dims: " + trainingData.size() + " x " + trainingData.get(0).size());
+        System.out.println();
 
-        System.out.println("Test data: " + testData);
-        System.out.println("Testing data dims: " + testData.size() + " x " + testData.get(0).size());
+        System.out.println("Test results using training data:");
+        printTestResultsImageExercise(trainingData, neuralNetwork, expectedOutputs);
 
-        System.out.println("Test results: ");
+        System.out.println();
+
+        System.out.println("Tests results using testing data:");
         printTestResultsImageExercise(testData, neuralNetwork, expectedOutputsTest);
+        System.out.println();
     }
 
     private static void printData(List<List<Double>> trainingData, List<List<Double>> expectedOutputs) {
@@ -127,13 +128,19 @@ public class MultilayerPerceptronDemo {
         expectedOutputs.add(expectedOutputFour);
 
         List<List<Neuron>> neuralNetwork = createANeuralNetwork(trainingData.get(0).size(), 2, 1);
-        trainNeuralNetwork(neuralNetwork, trainingData, expectedOutputs, 0.001, 0.001);
+        System.out.println("TRAIN XOR NEURAL NETWORK");
+        trainNeuralNetwork(neuralNetwork, trainingData, expectedOutputs, 0.01, 0.0015);
 
+        System.out.println("Neural network layers: ");
         for (List<Neuron> layer : neuralNetwork) {
             System.out.println(layer);
         }
 
+        System.out.println();
+
+        System.out.println("XOR test results");
         printTestResults(trainingData, neuralNetwork, expectedOutputs);
+        System.out.println();
 
         List<List<Double>> hiddenLayerNeuronsWeights = new ArrayList<>();
         for (Neuron hiddenNeuron : neuralNetwork.get(0)) {
@@ -158,8 +165,6 @@ public class MultilayerPerceptronDemo {
         int incorrect = 0;
         for (int i = 0; i < trainingData.size(); i++) {
             List<Double> outputs = forwardPropagate(neuralNetwork, trainingData.get(i));
-            System.out.println("(Inputs: " + trainingData.get(i) + ") -> (Outputs: " + outputs + ")");
-            System.out.println("Expected outputs: " + expectedOutputs.get(i));
             if ((outputs.get(0) > 0 && expectedOutputs.get(i).get(0) > 0) || ((outputs.get(0) < 0 && expectedOutputs.get(i).get(0) < 0))) {
                 correct += 1;
             } else {
@@ -191,10 +196,11 @@ public class MultilayerPerceptronDemo {
             }
 
             currentMaxError = Collections.max(errors);
-            System.out.println("Current epoch: " + currentEpoch);
-            System.out.println("Maximum error in epoch: " + currentMaxError);
             currentEpoch += 1;
         }
+
+        System.out.println("Epochs: " + currentEpoch);
+        System.out.println("Max error: " + currentMaxError);
     }
 
     private static List<List<Neuron>> createANeuralNetwork(int entryLayerInputs, int hiddenLayerNeurons, int exitLayerNeurons) {
