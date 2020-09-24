@@ -1,27 +1,36 @@
+import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Properties;
 import java.util.Random;
 
 public class SimplePerceptronDemo {
     public static void main(String[] args) throws IOException {
+        String ej1ConfigPath = "src/config.properties";
+        final Properties properties = new Properties();
+        properties.load(new FileInputStream(ej1ConfigPath));
 
         // AND test
         float[][] andTrainingSet = {{-1,1},{1,-1},{-1,-1},{1,1}};
         float[] andExpectedOutputs = {-1, -1, -1, 1};
-        writeTrainingDataToFile("AND-trainingData.csv", andTrainingSet, andExpectedOutputs);
+        writeTrainingDataToFile(properties.getProperty("andTrainingInputs"), andTrainingSet, andExpectedOutputs);
         System.out.println("AND test");
-        float[] andWeights = simplePerceptron(andTrainingSet, andExpectedOutputs, 0.01f, 50);
-        writeWeightsToFile("AND-weights.csv", andWeights);
+        float andEta = Float.parseFloat(properties.getProperty("andEta"));
+        int maxAndIterations = Integer.parseInt(properties.getProperty("maxAndIterations"));
+        float[] andWeights = simplePerceptron(andTrainingSet, andExpectedOutputs, andEta, maxAndIterations);
+        writeWeightsToFile(properties.getProperty("andTrainingOutputs"), andWeights);
 
         System.out.println();
 
         // XOR test
         float[][] xorTrainingSet = {{-1,1},{1,-1},{-1,-1},{1,1}};
         float[] xorExpectedOutputs = {1, 1, -1, -1};
-        writeTrainingDataToFile("XOR-trainingData.csv", xorTrainingSet, xorExpectedOutputs);
+        writeTrainingDataToFile(properties.getProperty("xorTrainingInputs"), xorTrainingSet, xorExpectedOutputs);
         System.out.println("XOR test");
-        float[] xorWeights = simplePerceptron(xorTrainingSet, xorExpectedOutputs, 0.01f, 50);
-         writeWeightsToFile("XOR-weights.csv", xorWeights);
+        float xorEta = Float.parseFloat(properties.getProperty("xorEta"));
+        int maxXorIterations = Integer.parseInt(properties.getProperty("maxXorIterations"));
+        float[] xorWeights = simplePerceptron(xorTrainingSet, xorExpectedOutputs, xorEta, maxXorIterations);
+         writeWeightsToFile(properties.getProperty("xorTrainingOutputs"), xorWeights);
     }
 
     private static float[] simplePerceptron(float[][] trainingSet, float[] expectedOutputs, float eta, int maxIterations) {
